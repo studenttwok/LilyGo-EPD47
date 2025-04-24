@@ -17,6 +17,7 @@
 #include <xtensa/core-macros.h>
 
 #include <string.h>
+#include <math.h>
 
 /******************************************************************************/
 /***        macro definitions                                               ***/
@@ -33,7 +34,7 @@
 #ifndef _swap_int
 #define _swap_int(a, b) \
     {                   \
-        int32_t t = a;      \
+        int32_t t = a;  \
         a = b;          \
         b = t;          \
     }
@@ -87,7 +88,7 @@ static void IRAM_ATTR provide_out(OutputParams *params);
 static void IRAM_ATTR feed_display(OutputParams *params);
 
 static void epd_fill_circle_helper(int32_t x0, int32_t y0, int32_t r, int32_t corners, int32_t delta,
-                            uint8_t color, uint8_t *framebuffer);
+                                   uint8_t color, uint8_t *framebuffer);
 
 /******************************************************************************/
 /***        exported variables                                              ***/
@@ -144,8 +145,7 @@ static const DRAM_ATTR uint32_t lut_1bpp[256] = {
     0x5400, 0x5401, 0x5404, 0x5405, 0x5410, 0x5411, 0x5414, 0x5415,
     0x5440, 0x5441, 0x5444, 0x5445, 0x5450, 0x5451, 0x5454, 0x5455,
     0x5500, 0x5501, 0x5504, 0x5505, 0x5510, 0x5511, 0x5514, 0x5515,
-    0x5540, 0x5541, 0x5544, 0x5545, 0x5550, 0x5551, 0x5554, 0x5555
-};
+    0x5540, 0x5541, 0x5544, 0x5545, 0x5550, 0x5551, 0x5554, 0x5555};
 
 /******************************************************************************/
 /***        exported functions                                              ***/
@@ -161,10 +161,9 @@ void epd_init()
     output_queue = xQueueCreate(64, EPD_WIDTH / 2);
 }
 
-
 void epd_push_pixels(Rect_t area, int16_t time, int32_t color)
 {
-    uint8_t row[EPD_LINE_BYTES] = { 0 };
+    uint8_t row[EPD_LINE_BYTES] = {0};
 
     for (uint32_t i = 0; i < area.width; i++)
     {
@@ -210,12 +209,10 @@ void epd_push_pixels(Rect_t area, int16_t time, int32_t color)
     epd_end_frame();
 }
 
-
 void epd_clear_area(Rect_t area)
 {
     epd_clear_area_cycles(area, 4, 50);
 }
-
 
 void epd_clear_area_cycles(Rect_t area, int32_t cycles, int32_t cycle_time)
 {
@@ -235,19 +232,16 @@ void epd_clear_area_cycles(Rect_t area, int32_t cycles, int32_t cycle_time)
     }
 }
 
-
 Rect_t epd_full_screen()
 {
     Rect_t area = {.x = 0, .y = 0, .width = EPD_WIDTH, .height = EPD_HEIGHT};
     return area;
 }
 
-
 void epd_clear()
 {
     epd_clear_area(epd_full_screen());
 }
-
 
 void IRAM_ATTR calc_epd_input_4bpp(uint32_t *line_data, uint8_t *epd_input,
                                    uint8_t k, uint8_t *conversion_lut)
@@ -269,15 +263,14 @@ void IRAM_ATTR calc_epd_input_4bpp(uint32_t *line_data, uint8_t *epd_input,
                          conversion_lut[v3] |
                          conversion_lut[v4] << 8;
 #else
-        uint32_t pixel = (conversion_lut[v1]) << 0  |
-                         (conversion_lut[v2]) << 8  |
+        uint32_t pixel = (conversion_lut[v1]) << 0 |
+                         (conversion_lut[v2]) << 8 |
                          (conversion_lut[v3]) << 16 |
                          (conversion_lut[v4]) << 24;
 #endif
         wide_epd_input[j] = pixel;
     }
 }
-
 
 void IRAM_ATTR calc_epd_input_1bpp(uint8_t *line_data, uint8_t *epd_input,
                                    DrawMode_t mode)
@@ -294,13 +287,12 @@ void IRAM_ATTR calc_epd_input_1bpp(uint8_t *line_data, uint8_t *epd_input,
     }
 }
 
-
 inline uint32_t min(uint32_t x, uint32_t y)
 {
     return x < y ? x : y;
 }
 
-
+// Obey canvas
 void epd_draw_hline(int32_t x, int32_t y, int32_t length, uint8_t color, uint8_t *framebuffer)
 {
     for (int32_t i = 0; i < length; i++)
@@ -310,7 +302,7 @@ void epd_draw_hline(int32_t x, int32_t y, int32_t length, uint8_t color, uint8_t
     }
 }
 
-
+// Obey canvas
 void epd_draw_vline(int32_t x, int32_t y, int32_t length, uint8_t color, uint8_t *framebuffer)
 {
     for (int32_t i = 0; i < length; i++)
@@ -320,19 +312,19 @@ void epd_draw_vline(int32_t x, int32_t y, int32_t length, uint8_t color, uint8_t
     }
 }
 
-
+// Obey canvas
 void epd_draw_pixel(int32_t x, int32_t y, uint8_t color, uint8_t *framebuffer)
 {
-    if (x < 0 || x >= EPD_WIDTH)
+    if (x < 0 || x >= EPD_CANVAS_WIDTH)
     {
         return;
     }
-    if (y < 0 || y >= EPD_HEIGHT)
+    if (y < 0 || y >= EPD_CANVAS_HEIGHT)
     {
         return;
     }
-    uint8_t *buf_ptr = &framebuffer[y * EPD_WIDTH / 2 + x / 2];
-    if (x % 2)
+    uint8_t *buf_ptr = &framebuffer[y * EPD_CANVAS_WIDTH / 2 + x / 2];
+    if (x % 2 == 1)
     {
         *buf_ptr = (*buf_ptr & 0x0F) | (color & 0xF0);
     }
@@ -342,7 +334,7 @@ void epd_draw_pixel(int32_t x, int32_t y, uint8_t color, uint8_t *framebuffer)
     }
 }
 
-
+// Obey canvas
 void epd_draw_circle(int32_t x0, int32_t y0, int32_t r, uint8_t color, uint8_t *framebuffer)
 {
     int32_t f = 1 - r;
@@ -379,16 +371,16 @@ void epd_draw_circle(int32_t x0, int32_t y0, int32_t r, uint8_t color, uint8_t *
     }
 }
 
-
+// Obey canvas
 void epd_fill_circle(int32_t x0, int32_t y0, int32_t r, uint8_t color, uint8_t *framebuffer)
 {
     epd_draw_vline(x0, y0 - r, 2 * r + 1, color, framebuffer);
     epd_fill_circle_helper(x0, y0, r, 3, 0, color, framebuffer);
 }
 
-
+// Obey canvas
 static void epd_fill_circle_helper(int32_t x0, int32_t y0, int32_t r, int32_t corners, int32_t delta,
-                            uint8_t color, uint8_t *framebuffer)
+                                   uint8_t color, uint8_t *framebuffer)
 {
     int32_t f = 1 - r;
     int32_t ddF_x = 1;
@@ -432,7 +424,9 @@ static void epd_fill_circle_helper(int32_t x0, int32_t y0, int32_t r, int32_t co
     }
 }
 
-void epd_draw_oval(int x0, int y0, int rx, int ry, uint8_t color, uint8_t *framebuffer) {
+// Obey canvas
+void epd_draw_oval(int x0, int y0, int rx, int ry, uint8_t color, uint8_t *framebuffer)
+{
     int x = 0;
     int y = ry;
     int64_t rxSq = (int64_t)rx * rx;
@@ -444,7 +438,8 @@ void epd_draw_oval(int x0, int y0, int rx, int ry, uint8_t color, uint8_t *frame
 
     // Region 1: Top and bottom edges
     int64_t p = round(rySq - (rxSq * ry) + (0.25 * rxSq));
-    while (px < py) {
+    while (px < py)
+    {
         epd_draw_pixel(x0 + x, y0 + y, color, framebuffer);
         epd_draw_pixel(x0 - x, y0 + y, color, framebuffer);
         epd_draw_pixel(x0 + x, y0 - y, color, framebuffer);
@@ -452,9 +447,12 @@ void epd_draw_oval(int x0, int y0, int rx, int ry, uint8_t color, uint8_t *frame
 
         x++;
         px += twoRySq;
-        if (p < 0) {
+        if (p < 0)
+        {
             p += rySq + px;
-        } else {
+        }
+        else
+        {
             y--;
             py -= twoRxSq;
             p += rySq + px - py;
@@ -463,7 +461,8 @@ void epd_draw_oval(int x0, int y0, int rx, int ry, uint8_t color, uint8_t *frame
 
     // Region 2: Left and right edges
     p = round(rySq * (x + 0.5) * (x + 0.5) + rxSq * (y - 1) * (y - 1) - rxSq * rySq);
-    while (y >= 0) {
+    while (y >= 0)
+    {
         epd_draw_pixel(x0 + x, y0 + y, color, framebuffer);
         epd_draw_pixel(x0 - x, y0 + y, color, framebuffer);
         epd_draw_pixel(x0 + x, y0 - y, color, framebuffer);
@@ -471,9 +470,12 @@ void epd_draw_oval(int x0, int y0, int rx, int ry, uint8_t color, uint8_t *frame
 
         y--;
         py -= twoRxSq;
-        if (p > 0) {
+        if (p > 0)
+        {
             p += rxSq - py;
-        } else {
+        }
+        else
+        {
             x++;
             px += twoRySq;
             p += rxSq - py + px;
@@ -481,6 +483,7 @@ void epd_draw_oval(int x0, int y0, int rx, int ry, uint8_t color, uint8_t *frame
     }
 }
 
+// Obey canvas
 void epd_draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t color, uint8_t *framebuffer)
 {
     epd_draw_hline(x, y, w, color, framebuffer);
@@ -489,7 +492,7 @@ void epd_draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t color, ui
     epd_draw_vline(x + w - 1, y, h, color, framebuffer);
 }
 
-
+// Obey canvas
 void epd_fill_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t color, uint8_t *framebuffer)
 {
     for (int32_t i = x; i < x + w; i++)
@@ -498,7 +501,7 @@ void epd_fill_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t color, ui
     }
 }
 
-
+// Obey canvas
 void epd_write_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color, uint8_t *framebuffer)
 {
     int32_t steep = abs(y1 - y0) > abs(x1 - x0);
@@ -549,7 +552,7 @@ void epd_write_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t colo
     }
 }
 
-
+// Obey canvas
 void epd_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color, uint8_t *framebuffer)
 {
     // Update in subclasses if desired!
@@ -571,7 +574,7 @@ void epd_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color
     }
 }
 
-
+// Obey canvas
 void epd_draw_triangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
                        uint8_t color, uint8_t *framebuffer)
 {
@@ -580,7 +583,7 @@ void epd_draw_triangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x
     epd_draw_line(x2, y2, x0, y0, color, framebuffer);
 }
 
-
+// Obey canvas
 void epd_fill_triangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
                        uint8_t color, uint8_t *framebuffer)
 {
@@ -673,7 +676,7 @@ void epd_fill_triangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x
     }
 }
 
-
+// Obey canvas
 void epd_copy_to_framebuffer(Rect_t image_area, uint8_t *image_data,
                              uint8_t *framebuffer)
 {
@@ -684,25 +687,25 @@ void epd_copy_to_framebuffer(Rect_t image_area, uint8_t *image_data,
         uint32_t value_index = i;
         // for images of uneven width,
         // consume an additional nibble per row.
-        if (image_area.width % 2)
+        if (image_area.width % 2 == 1)
         {
             value_index += i / image_area.width;
         }
-        uint8_t val = (value_index % 2) ? (image_data[value_index / 2] & 0xF0) >> 4
-                                        : image_data[value_index / 2] & 0x0F;
+        uint8_t val = (value_index % 2 == 1) ? (image_data[value_index / 2] & 0xF0) >> 4
+                                             : image_data[value_index / 2] & 0x0F;
 
         int32_t xx = image_area.x + i % image_area.width;
-        if (xx < 0 || xx >= EPD_WIDTH)
+        if (xx < 0 || xx >= EPD_CANVAS_WIDTH)
         {
             continue;
         }
         int32_t yy = image_area.y + i / image_area.width;
-        if (yy < 0 || yy >= EPD_HEIGHT)
+        if (yy < 0 || yy >= EPD_CANVAS_HEIGHT)
         {
             continue;
         }
-        uint8_t *buf_ptr = &framebuffer[yy * EPD_WIDTH / 2 + xx / 2];
-        if (xx % 2)
+        uint8_t *buf_ptr = &framebuffer[yy * EPD_CANVAS_WIDTH / 2 + xx / 2];
+        if (xx % 2 == 1)
         {
             *buf_ptr = (*buf_ptr & 0x0F) | (val << 4);
         }
@@ -713,12 +716,10 @@ void epd_copy_to_framebuffer(Rect_t image_area, uint8_t *image_data,
     }
 }
 
-
 void IRAM_ATTR epd_draw_grayscale_image(Rect_t area, uint8_t *data)
 {
     epd_draw_image(area, data, BLACK_ON_WHITE);
 }
-
 
 void IRAM_ATTR epd_draw_frame_1bit(Rect_t area, uint8_t *ptr,
                                    DrawMode_t mode, int32_t time)
@@ -808,7 +809,6 @@ void IRAM_ATTR epd_draw_frame_1bit(Rect_t area, uint8_t *ptr,
     epd_end_frame();
 }
 
-
 void IRAM_ATTR epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode)
 {
     uint8_t frame_count = 15;
@@ -865,7 +865,6 @@ static void write_row(uint32_t output_time_dus)
     epd_output_row(output_time_dus);
 }
 
-
 static void skip_row(uint8_t pipeline_finish_time)
 {
     // output previously loaded row, fill buffer with no-ops.
@@ -897,7 +896,6 @@ static void skip_row(uint8_t pipeline_finish_time)
     skipping++;
 }
 
-
 static void reorder_line_buffer(uint32_t *line_data)
 {
     for (uint32_t i = 0; i < EPD_LINE_BYTES / 4; i++)
@@ -906,7 +904,6 @@ static void reorder_line_buffer(uint32_t *line_data)
         *(line_data++) = val >> 16 | ((val & 0x0000FFFF) << 16);
     }
 }
-
 
 static void IRAM_ATTR reset_lut(uint8_t *lut_mem, DrawMode_t mode)
 {
@@ -924,7 +921,6 @@ static void IRAM_ATTR reset_lut(uint8_t *lut_mem, DrawMode_t mode)
         break;
     }
 }
-
 
 static void IRAM_ATTR update_LUT(uint8_t *lut_mem, uint8_t k, DrawMode_t mode)
 {
@@ -959,7 +955,6 @@ static void IRAM_ATTR update_LUT(uint8_t *lut_mem, uint8_t k, DrawMode_t mode)
         lut_mem[p] &= 0x3F;
     }
 }
-
 
 static void IRAM_ATTR bit_shift_buffer_right(uint8_t *buf, uint32_t len, int32_t shift)
 {
@@ -1064,7 +1059,6 @@ static void IRAM_ATTR provide_out(OutputParams *params)
     vTaskDelay(portMAX_DELAY);
 }
 
-
 static void IRAM_ATTR feed_display(OutputParams *params)
 {
     Rect_t area = params->area;
@@ -1103,6 +1097,214 @@ static void IRAM_ATTR feed_display(OutputParams *params)
 
     xSemaphoreGive(params->done_smphr);
     vTaskDelay(portMAX_DELAY);
+}
+
+// Obey canvas
+void canvas_framebuffer_to_device_framebuffer(uint16_t orientation, uint8_t *source_buffer, int32_t source_width, int32_t source_height,
+                                              uint8_t *dest_buffer, int32_t *dest_width, int32_t *dest_height)
+{
+
+    if (orientation == 90 || orientation == 270)
+    {
+        *dest_width = source_height;
+        *dest_height = source_width;
+    }
+    else
+    {
+        *dest_width = source_width;
+        *dest_height = source_height;
+    }
+
+    int32_t nth_of_source = 0;
+
+    // generate the sequence numbeer of the transposed buffer
+    for (int32_t i = 0; i < (*dest_width) * (*dest_height); i++)
+    {
+        int32_t dist_x = i % (*dest_width);
+        int32_t dist_y = i / (*dest_width);
+
+        // Going to fill new row of dist, determine nth for src buffer
+        if (dist_x == 0)
+        {
+            // first nth number of that row
+            if (orientation == 270)
+            {
+                nth_of_source = source_width - 1 - dist_y;
+            }
+            else if (orientation == 90)
+            {
+                nth_of_source = (source_width * source_height) - source_width + dist_y;
+            }
+            else if (orientation == 180)
+            {
+                nth_of_source = (source_height - dist_y) * source_width - 1;
+            }
+            else if (orientation == 0)
+            {
+                nth_of_source = i;
+            }
+            else
+            {
+                assert(0 && "Invalid orientation for transpose_framebuffer()");
+            }
+        }
+
+        // convert nth to value_access_index
+        uint32_t source_buffer_access_index = nth_of_source;
+        if (source_width % 2 == 1)
+        {
+            source_buffer_access_index += nth_of_source / source_width;
+        }
+
+        uint8_t original_pixel = source_buffer[source_buffer_access_index / 2];
+        if (source_buffer_access_index % 2 == 1)
+        {
+            original_pixel = (original_pixel & 0xF0) >> 4;
+        }
+        else
+        {
+            original_pixel = (original_pixel & 0x0F);
+        }
+
+        // write to buffer
+        // consider the odd number of bytes in the destination buffer
+        uint32_t dest_buffer_access_index = i;
+        if ((*dest_width) % 2 == 1)
+        {
+            dest_buffer_access_index += dest_buffer_access_index / (*dest_width);
+        }
+        // uint8_t *buf_ptr = &dest_buffer[dist_y * EPD_WIDTH / 2 + dist_x / 2];
+        uint8_t *buf_ptr = &dest_buffer[dest_buffer_access_index / 2];
+
+        if (dest_buffer_access_index % 2 == 1)
+        {
+            *buf_ptr = (*buf_ptr & 0x0F) | (original_pixel << 4); // Keep the lower nibble and set the upper nibble to original pixel value
+        }
+        else
+        {
+            *buf_ptr = (*buf_ptr & 0xF0) | (original_pixel & 0x0F); // Keep the upper nibble and set the lower nibble to original pixel value
+        }
+
+        if (orientation == 270)
+        {
+            nth_of_source += source_width;
+        }
+        else if (orientation == 90)
+        {
+            nth_of_source -= source_width;
+        }
+        else if (orientation == 180)
+        {
+            nth_of_source -= 1;
+        }
+        else if (orientation == 0)
+        {
+            nth_of_source += 1;
+        }
+        else
+        {
+            assert(0 && "Invalid orientation for canvas_to_device_framebuffer()");
+        }
+    }
+}
+
+void canvas_coordinates_to_device_coordinates(uint16_t orientation, int32_t *x, int32_t *y)
+{
+    int32_t temp = 0;
+
+    if (orientation == 90)
+    {
+        temp = *x;
+        *x = EPD_WIDTH - *y - 1;
+        *y = temp;
+    }
+    else if (orientation == 180)
+    {
+        // temp = *x;
+        *x = EPD_WIDTH - *x - 1;
+        *y = EPD_HEIGHT - *y - 1;
+    }
+    else if (orientation == 270)
+    {
+        temp = *x;
+        *x = *y;
+        *y = EPD_HEIGHT - temp - 1;
+    }
+    else if (orientation == 0)
+    {
+        *x = *x;
+        *y = *y;
+    }
+    else
+    {
+        assert(0 && "Invalid orientation for canvas_coordinates_to_device_coordinates()");
+    }
+}
+
+void canvas_rect_to_device_rect(uint16_t orientation, Rect_t *rect)
+{
+    int32_t x = rect->x;
+    int32_t y = rect->y;
+    int32_t w = rect->width;
+    int32_t h = rect->height;
+
+    int32_t upper_left_x = x;
+    int32_t upper_left_y = y;
+    int32_t upper_right_x = x + w - 1;
+    int32_t upper_right_y = y;
+    int32_t lower_left_x = x;
+    int32_t lower_left_y = y + h - 1;
+    int32_t lower_right_x = x + w - 1;
+    int32_t lower_right_y = y + h - 1;
+
+    int32_t reference_x = 0;
+    int32_t reference_y = 0;
+
+    if (orientation == 0)
+    {
+        reference_x = upper_left_x;
+        reference_y = upper_left_y;
+    }
+    else if (orientation == 90)
+    {
+        reference_x = lower_left_x;
+        reference_y = lower_left_y;
+    }
+    else if (orientation == 180)
+    {
+        reference_x = lower_right_x;
+        reference_y = lower_right_y;
+    }
+    else if (orientation == 270)
+    {
+        reference_x = upper_right_x;
+        reference_y = upper_right_y;
+    }
+    else
+    {
+        assert(0 && "Invalid orientation for canvas_rect_to_device_rect()");
+    }
+
+    canvas_coordinates_to_device_coordinates(orientation, &reference_x, &reference_y);
+
+    rect->x = reference_x;
+    rect->y = reference_y;
+    // rect->width = w;
+    // rect->height = h;
+    if (orientation == 0 || orientation == 180)
+    {
+        rect->width = w;
+        rect->height = h;
+    }
+    else if (orientation == 90 || orientation == 270)
+    {
+        rect->width = h;
+        rect->height = w;
+    }
+    else
+    {
+        assert(0 && "Invalid orientation for canvas_rect_to_device_rect()");
+    }
 }
 
 /******************************************************************************/

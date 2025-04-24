@@ -25,11 +25,11 @@
 
 typedef struct
 {
-    uint8_t  mask;        /* char data will be bitwise AND with this */
-    uint8_t  lead;        /* start bytes of current char in utf-8 encoded character */
-    uint32_t beg;         /* beginning of codepoint range */
-    uint32_t end;         /* end of codepoint range */
-    int32_t  bits_stored; /* the number of bits from the codepoint that fits in char */
+    uint8_t mask;        /* char data will be bitwise AND with this */
+    uint8_t lead;        /* start bytes of current char in utf-8 encoded character */
+    uint32_t beg;        /* beginning of codepoint range */
+    uint32_t end;        /* end of codepoint range */
+    int32_t bits_stored; /* the number of bits from the codepoint that fits in char */
 } utf_t;
 
 /******************************************************************************/
@@ -90,10 +90,10 @@ static void get_char_bounds(const GFXfont *font,
  */
 static utf_t *utf[] = {
     /*             mask        lead        beg      end       bits */
-    [0] = &(utf_t){0b00111111, 0b10000000, 0,       0,        6},
-    [1] = &(utf_t){0b01111111, 0b00000000, 0000,    0177,     7},
-    [2] = &(utf_t){0b00011111, 0b11000000, 0200,    03777,    5},
-    [3] = &(utf_t){0b00001111, 0b11100000, 04000,   0177777,  4},
+    [0] = &(utf_t){0b00111111, 0b10000000, 0, 0, 6},
+    [1] = &(utf_t){0b01111111, 0b00000000, 0000, 0177, 7},
+    [2] = &(utf_t){0b00011111, 0b11000000, 0200, 03777, 5},
+    [3] = &(utf_t){0b00001111, 0b11100000, 04000, 0177777, 4},
     [4] = &(utf_t){0b00000111, 0b11110000, 0200000, 04177777, 3},
     &(utf_t){0},
 };
@@ -121,7 +121,6 @@ void get_glyph(const GFXfont *font, uint32_t code_point, GFXglyph **glyph)
     }
     return;
 }
-
 
 void get_text_bounds(const GFXfont *font,
                      const char *string,
@@ -164,6 +163,7 @@ void get_text_bounds(const GFXfont *font,
     *h = maxy - miny;
 }
 
+// To obey canvas
 void write_mode(const GFXfont *font,
                 const char *string,
                 int32_t *cursor_x,
@@ -172,9 +172,10 @@ void write_mode(const GFXfont *font,
                 DrawMode_t mode,
                 const FontProperties *properties)
 {
-    if (*string == '\0') return ;
+    if (*string == '\0')
+        return;
 
-    FontProperties props = (properties == NULL) ? font_properties_default() \
+    FontProperties props = (properties == NULL) ? font_properties_default()
                                                 : *properties;
 
     int32_t x1 = 0, y1 = 0, w = 0, h = 0;
@@ -203,8 +204,9 @@ void write_mode(const GFXfont *font,
     }
     else
     {
-        buf_width = EPD_WIDTH / 2;
-        buf_height = EPD_HEIGHT;
+        buf_width = (EPD_CANVAS_WIDTH / 2 + EPD_CANVAS_WIDTH % 2);
+        buf_height = EPD_CANVAS_HEIGHT;
+
         buffer = framebuffer;
         local_cursor_x = *cursor_x;
         local_cursor_y = *cursor_y;
@@ -237,17 +239,30 @@ void write_mode(const GFXfont *font,
 
     if (framebuffer == NULL)
     {
+
         Rect_t area = {
             .x = x1,
             .y = *cursor_y - h + baseline_height,
             .width = w,
-            .height = h
-        };
+            .height = h};
+
+#if EPD_CANVAS_ORIENTATION == 0
         epd_draw_image(area, buffer, mode);
+
+#else
+        int buffer_size = (h + h % 2) * w;
+        uint8_t *device_framebuffer = (uint8_t *)malloc(buffer_size);
+        memset(device_framebuffer, 255, buffer_size);
+
+        canvas_rect_to_device_rect(EPD_CANVAS_ORIENTATION, &area);
+        canvas_framebuffer_to_device_framebuffer(EPD_CANVAS_ORIENTATION, buffer, w, h, device_framebuffer, &area.width, &area.height);
+        epd_draw_image(area, device_framebuffer, mode);
+        free(device_framebuffer);
+#endif
+
         free(buffer);
     }
 }
-
 
 void writeln(const GFXfont *font,
              const char *string,
@@ -257,7 +272,6 @@ void writeln(const GFXfont *font,
 {
     return write_mode(font, string, cursor_x, cursor_y, framebuffer, BLACK_ON_WHITE, NULL);
 }
-
 
 void write_string(const GFXfont *font,
                   const char *string,
@@ -312,10 +326,10 @@ static int32_t utf8_len(const uint8_t ch)
     return len;
 }
 
-
 static uint32_t next_cp(uint8_t **string)
 {
-    if (**string == 0) return 0;
+    if (**string == 0)
+        return 0;
 
     int32_t bytes = utf8_len(**string);
     uint8_t *chr = *string;
@@ -332,18 +346,15 @@ static uint32_t next_cp(uint8_t **string)
     return codep;
 }
 
-
 static FontProperties font_properties_default()
 {
     FontProperties props = {
         .fg_color = 0,
         .bg_color = 15,
         .fallback_glyph = 0,
-        .flags = 0
-    };
+        .flags = 0};
     return props;
 }
-
 
 static void IRAM_ATTR draw_char(const GFXfont *font,
                                 uint8_t *buffer,
@@ -436,7 +447,6 @@ static void IRAM_ATTR draw_char(const GFXfont *font,
     *cursor_x += glyph->advance_x;
 }
 
-
 static void get_char_bounds(const GFXfont *font,
                             uint32_t cp,
                             int32_t *x,
@@ -455,7 +465,8 @@ static void get_char_bounds(const GFXfont *font,
         get_glyph(font, props->fallback_glyph, &glyph);
     }
 
-    if (!glyph) return ;
+    if (!glyph)
+        return;
 
     int32_t x1 = *x + glyph->left;
     int32_t y1 = *y + (glyph->top - glyph->height);

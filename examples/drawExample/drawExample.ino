@@ -12,7 +12,7 @@
  *                  PSRAM:"OPI PSRAM"
  *                  Upload Mode:"UART0/Hardware CDC"
  *                  USB Mode:"Hardware CDC and JTAG"
- *  
+ *
  */
 
 #ifndef BOARD_HAS_PSRAM
@@ -22,20 +22,22 @@
 #include <Arduino.h>
 #include "epd_driver.h"
 #include "utilities.h"
+#include "firasans.h"
 
-
-uint8_t *framebuffer = NULL;
+uint8_t *canvas_framebuffer = NULL;
 
 void setup()
 {
     Serial.begin(115200);
     delay(1000);
-    framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), EPD_WIDTH * EPD_HEIGHT / 2);
-    if (!framebuffer) {
+    canvas_framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), EPD_CANVAS_WIDTH * EPD_CANVAS_HEIGHT / 2);
+    if (!canvas_framebuffer)
+    {
         Serial.println("alloc memory failed !!!");
-        while (1);
+        while (1)
+            ;
     }
-    memset(framebuffer, 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
+    memset(canvas_framebuffer, 0xFF, EPD_CANVAS_WIDTH * EPD_CANVAS_HEIGHT / 2);
 
     epd_init();
 
@@ -44,32 +46,64 @@ void setup()
     epd_poweroff();
 }
 
+void display_framebuffer(uint8_t *canvas_framebuffer)
+{
+#if EPD_CANVAS_ORIENTATION == 0
+    epd_draw_grayscale_image(epd_full_screen(), canvas_framebuffer);
+#else
+    ///// Transpose buffer!! //////////
+    // Transpose the buffer from portrait to landscape
+    // and draw it to the framebuffer.
+    int buffer_size = ((EPD_CANVAS_WIDTH + EPD_CANVAS_WIDTH % 2) * EPD_CANVAS_HEIGHT) / 2;
+    uint8_t *device_framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), buffer_size);
+    if (device_framebuffer == NULL)
+    {
+        fprintf(stderr, "Memory allocation failed\n");
+        return;
+    }
+    memset(device_framebuffer, 0xFF, buffer_size);
+    Rect_t area = epd_full_screen();
+    canvas_framebuffer_to_device_framebuffer(EPD_CANVAS_ORIENTATION, canvas_framebuffer, EPD_CANVAS_WIDTH, EPD_CANVAS_HEIGHT, device_framebuffer, &(area.width), &(area.height));
+    epd_draw_grayscale_image(area, device_framebuffer);
+    free(device_framebuffer);
+#endif
+}
+
 void loop()
 {
     epd_poweron();
-    epd_draw_hline(10, random(10, EPD_HEIGHT), EPD_WIDTH - 20, 0, framebuffer);
-    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+    epd_draw_hline(10, random(10, EPD_CANVAS_HEIGHT), EPD_CANVAS_WIDTH - 20, 0, canvas_framebuffer);
+    display_framebuffer(canvas_framebuffer);
     delay(1000);
 
-    epd_draw_rect(10, random(10, EPD_HEIGHT), random(10, 60), random(10, 120), 0, framebuffer);
-    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+    int cursor_x = 0;
+    int cursor_y = 100;
+    write_string((GFXfont *)&FiraSans, "Hello World", &cursor_x, &cursor_y, canvas_framebuffer);
+    display_framebuffer(canvas_framebuffer);
     delay(1000);
 
-    epd_draw_circle(random(10, EPD_WIDTH), random(10, EPD_HEIGHT), 120, 0, framebuffer);
-    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+    cursor_x = 0;
+    write_string((GFXfont *)&FiraSans, "Support partial refresh!", &cursor_x, &cursor_y, NULL);
+    display_framebuffer(canvas_framebuffer);
     delay(1000);
 
-    epd_fill_rect(10, random(10, EPD_HEIGHT), random(10, 60), random(10, 120), 0, framebuffer);
-    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+    epd_draw_rect(10, random(10, EPD_CANVAS_HEIGHT), random(10, 60), random(10, 120), 0, canvas_framebuffer);
+    display_framebuffer(canvas_framebuffer);
     delay(1000);
 
-    epd_fill_circle(random(10, EPD_WIDTH), random(10, EPD_HEIGHT), random(10, 160), 0, framebuffer);
-    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+    epd_draw_circle(random(10, EPD_CANVAS_WIDTH), random(10, EPD_CANVAS_HEIGHT), 120, 0, canvas_framebuffer);
+    display_framebuffer(canvas_framebuffer);
     delay(1000);
 
+    epd_fill_rect(10, random(10, EPD_CANVAS_HEIGHT), random(10, 60), random(10, 120), 0, canvas_framebuffer);
+    display_framebuffer(canvas_framebuffer);
+    delay(1000);
 
-    memset(framebuffer, 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
+    epd_fill_circle(random(10, EPD_CANVAS_WIDTH), random(10, EPD_CANVAS_HEIGHT), random(10, 160), 0, canvas_framebuffer);
+    display_framebuffer(canvas_framebuffer);
+    delay(1000);
+
+    memset(canvas_framebuffer, 0xFF, EPD_CANVAS_WIDTH * EPD_CANVAS_HEIGHT / 2);
     epd_clear();
     epd_poweroff();
-
 }
