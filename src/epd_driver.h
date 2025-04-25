@@ -422,6 +422,8 @@ extern "C"
     void canvas_coordinates_to_device_coordinates(uint16_t orientation, int32_t *x, int32_t *y);
     void canvas_rect_to_device_rect(uint16_t orientation, Rect_t *rect);
 
+    void epd_draw_canvas_framebuffer(uint8_t *canvas_framebuffer);
+
 #ifdef __cplusplus
 }
 #endif

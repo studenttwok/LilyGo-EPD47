@@ -4,7 +4,7 @@
 
 #include "epd_driver.h"
 #include "ed047tc1.h"
-
+#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
@@ -1305,6 +1305,29 @@ void canvas_rect_to_device_rect(uint16_t orientation, Rect_t *rect)
     {
         assert(0 && "Invalid orientation for canvas_rect_to_device_rect()");
     }
+}
+
+void epd_draw_canvas_framebuffer(uint8_t *canvas_framebuffer)
+{
+#if EPD_CANVAS_ORIENTATION == 0
+    epd_draw_grayscale_image(epd_full_screen(), canvas_framebuffer);
+#else
+    ///// Transpose buffer!! //////////
+    // Transpose the buffer from portrait to landscape
+    // and draw it to the framebuffer.
+    int buffer_size = ((EPD_CANVAS_WIDTH + EPD_CANVAS_WIDTH % 2) * EPD_CANVAS_HEIGHT) / 2;
+    uint8_t *device_framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), buffer_size);
+    if (device_framebuffer == NULL)
+    {
+        fprintf(stderr, "Memory allocation failed\n");
+        return;
+    }
+    memset(device_framebuffer, 0xFF, buffer_size);
+    Rect_t area = epd_full_screen();
+    canvas_framebuffer_to_device_framebuffer(EPD_CANVAS_ORIENTATION, canvas_framebuffer, EPD_CANVAS_WIDTH, EPD_CANVAS_HEIGHT, device_framebuffer, &(area.width), &(area.height));
+    epd_draw_grayscale_image(area, device_framebuffer);
+    free(device_framebuffer);
+#endif
 }
 
 /******************************************************************************/
