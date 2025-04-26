@@ -28,7 +28,7 @@
 #include "firasans.h"
 #include <Wire.h>
 #include "lilygo.h"
-#include <TouchDrvGT911.hpp>  //Arduino IDE -> Library manager -> Install SensorLib v0.19 
+#include <TouchDrvGT911.hpp> //Arduino IDE -> Library manager -> Install SensorLib v0.19
 #include "utilities.h"
 #include "hal/gpio_types.h"
 
@@ -36,30 +36,26 @@ TouchDrvGT911 touch;
 uint8_t *framebuffer = NULL;
 
 const char overview[] = {
-    "   ESP32 is a single 2.4 GHz Wi-Fi-and-Bluetooth\n"\
-    "combo chip designed with the TSMC ultra-low-po\n"\
-    "wer 40 nm technology. It is designed to achieve \n"\
-    "the best power and RF performance, showing rob\n"\
-    "ustness versatility and reliability in a wide variet\n"\
-    "y of applications and power scenarios.\n"\
-};
+    "   ESP32 is a single 2.4 GHz Wi-Fi-and-Bluetooth\n"
+    "combo chip designed with the TSMC ultra-low-po\n"
+    "wer 40 nm technology. It is designed to achieve \n"
+    "the best power and RF performance, showing rob\n"
+    "ustness versatility and reliability in a wide variet\n"
+    "y of applications and power scenarios.\n"};
 
 const char mcu_features[] = {
-    "➸ Xtensa® dual-core 32-bit LX6 microprocessor\n"\
-    "➸ 448 KB ROM & External 16MBytes falsh\n"\
-    "➸ 520 KB SRAM & External 16MBytes PSRAM\n"\
-    "➸ 16 KB SRAM in RTC\n"\
-    "➸ Multi-connections in Classic BT and BLE\n"\
-    "➸ 802.11 n (2.4 GHz), up to 150 Mbps\n"\
-};
+    "➸ Xtensa® dual-core 32-bit LX6 microprocessor\n"
+    "➸ 448 KB ROM & External 16MBytes falsh\n"
+    "➸ 520 KB SRAM & External 16MBytes PSRAM\n"
+    "➸ 16 KB SRAM in RTC\n"
+    "➸ Multi-connections in Classic BT and BLE\n"
+    "➸ 802.11 n (2.4 GHz), up to 150 Mbps\n"};
 
 const char srceen_features[] = {
-    "➸ 16 color grayscale\n"\
-    "➸ Use with 4.7\" EPDs\n"\
-    "➸ High-quality font rendering\n"\
-    "➸ ~630ms for full frame draw\n"\
-};
-
+    "➸ 16 color grayscale\n"
+    "➸ Use with 4.7\" EPDs\n"
+    "➸ High-quality font rendering\n"
+    "➸ ~630ms for full frame draw\n"};
 
 // const char *string_array[] = {overview, mcu_features, srceen_features};
 
@@ -67,31 +63,62 @@ int32_t cursor_x = 20;
 int32_t cursor_y = 60;
 
 Rect_t area1 = {
-    .x = 10,
-    .y = 20,
-    .width = EPD_WIDTH - 20,
-    .height =  EPD_HEIGHT / 2 + 80
-};
+    .x = 12,
+    .y = 22,
+    .width = EPD_CANVAS_WIDTH - 22,
+    .height = EPD_CANVAS_HEIGHT / 2 + 76};
+
 uint8_t state = 1;
 uint32_t touch_loop_interval = 0;
+
+uint32_t button_1_x = EPD_CANVAS_WIDTH - 260;
+uint32_t button_1_y = EPD_CANVAS_HEIGHT - 90;
+uint32_t button_2_x = EPD_CANVAS_WIDTH - 140;
+uint32_t button_2_y = EPD_CANVAS_HEIGHT - 90;
+
+void config_touch_to_canvas_orientation(int canvas_orientation, TouchDrvGT911 *touch)
+{
+    touch->setMaxCoordinates(EPD_CANVAS_WIDTH, EPD_CANVAS_HEIGHT);
+    if (canvas_orientation == 0)
+    {
+        touch->setSwapXY(true);
+        touch->setMirrorXY(false, true);
+    }
+    else if (canvas_orientation == 90)
+    {
+        touch->setSwapXY(false);
+        touch->setMirrorXY(true, true);
+    }
+    else if (canvas_orientation == 180)
+    {
+        touch->setSwapXY(true);
+        touch->setMirrorXY(true, false);
+    }
+    else if (canvas_orientation == 270)
+    {
+        touch->setSwapXY(false);
+        touch->setMirrorXY(false, false);
+    }
+}
 
 void setup()
 {
     Serial.begin(115200);
 
-
-    framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), EPD_WIDTH * EPD_HEIGHT / 2);
-    if (!framebuffer) {
+    framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), EPD_CANVAS_WIDTH * EPD_CANVAS_HEIGHT / 2);
+    if (!framebuffer)
+    {
         Serial.println("alloc memory failed !!!");
-        while (1);
+        while (1)
+            ;
     }
-    memset(framebuffer, 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
-
+    memset(framebuffer, 0xFF, EPD_CANVAS_WIDTH * EPD_CANVAS_HEIGHT / 2);
 
     epd_init();
 
     //* Sleep wakeup must wait one second, otherwise the touch device cannot be addressed
-    if (esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_UNDEFINED) {
+    if (esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_UNDEFINED)
+    {
         delay(1000);
     }
 
@@ -102,92 +129,106 @@ void setup()
     digitalWrite(TOUCH_INT, HIGH);
 
     /*
-    * The touch reset pin uses hardware pull-up,
-    * and the function of setting the I2C device address cannot be used.
-    * Use scanning to obtain the touch device address.*/
+     * The touch reset pin uses hardware pull-up,
+     * and the function of setting the I2C device address cannot be used.
+     * Use scanning to obtain the touch device address.*/
     uint8_t touchAddress = 0;
     Wire.beginTransmission(0x14);
-    if (Wire.endTransmission() == 0) {
+    if (Wire.endTransmission() == 0)
+    {
         touchAddress = 0x14;
     }
     Wire.beginTransmission(0x5D);
-    if (Wire.endTransmission() == 0) {
+    if (Wire.endTransmission() == 0)
+    {
         touchAddress = 0x5D;
     }
-    if (touchAddress == 0) {
-        while (1) {
+    if (touchAddress == 0)
+    {
+        while (1)
+        {
             Serial.println("Failed to find GT911 - check your wiring!");
             delay(1000);
         }
     }
     touch.setPins(-1, TOUCH_INT);
-    if (!touch.begin(Wire, touchAddress, BOARD_SDA, BOARD_SCL )) {
-        while (1) {
+    if (!touch.begin(Wire, touchAddress, BOARD_SDA, BOARD_SCL))
+    {
+        while (1)
+        {
             Serial.println("Failed to find GT911 - check your wiring!");
             delay(1000);
         }
     }
-    touch.setMaxCoordinates(EPD_WIDTH, EPD_HEIGHT);
-    touch.setSwapXY(true);
-    touch.setMirrorXY(false, true);
+    config_touch_to_canvas_orientation(EPD_CANVAS_ORIENTATION, &touch);
 
     Serial.println("Started Touchscreen poll...");
-
 
     epd_poweron();
     epd_clear();
     write_string((GFXfont *)&FiraSans, (char *)overview, &cursor_x, &cursor_y, framebuffer);
 
-    //Draw Box
-    epd_draw_rect(600, 450, 120, 60, 0, framebuffer);
-    cursor_x = 615;
-    cursor_y = 490;
+    // Draw Box
+    // epd_draw_rect(600, 450, 120, 60, 0, framebuffer);
+    epd_draw_rect(button_1_x, button_1_y, 120, 60, 0, framebuffer);
+    // cursor_x = 615;
+    // cursor_y = 490;
+    cursor_x = button_1_x + 15;
+    cursor_y = button_1_y + 40;
     writeln((GFXfont *)&FiraSans, "Prev", &cursor_x, &cursor_y, framebuffer);
 
-    epd_draw_rect(740, 450, 120, 60, 0, framebuffer);
-    cursor_x = 755;
-    cursor_y = 490;
+    // epd_draw_rect(740, 450, 120, 60, 0, framebuffer);
+    epd_draw_rect(button_2_x, button_2_y, 120, 60, 0, framebuffer);
+    cursor_x = button_2_x + 15;
+    cursor_y = button_2_y + 40;
     writeln((GFXfont *)&FiraSans, "Next", &cursor_x, &cursor_y, framebuffer);
 
     Rect_t area = {
-        .x = 160,
-        .y = 420,
+        .x = 10,
+        .y = EPD_CANVAS_HEIGHT - lilygo_height - 10,
         .width = lilygo_width,
-        .height =  lilygo_height
-    };
-    epd_copy_to_framebuffer(area, (uint8_t *) lilygo_data, framebuffer);
+        .height = lilygo_height};
+    epd_copy_to_framebuffer(area, (uint8_t *)lilygo_data, framebuffer);
 
-    epd_draw_rect(10, 20, EPD_WIDTH - 20, EPD_HEIGHT / 2 + 80, 0, framebuffer);
+    epd_draw_rect(10, 20, EPD_CANVAS_WIDTH - 20, EPD_CANVAS_HEIGHT / 2 + 80, 0, framebuffer);
 
-    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+    epd_draw_canvas_framebuffer(framebuffer);
 
     epd_poweroff();
 
-
     // Set the initial touch interval value
     touch_loop_interval = millis() + 300;
+
+    // Prepare the area for the text refresh
+    canvas_rect_to_device_rect(EPD_CANVAS_ORIENTATION, &area1);
 }
 
-
-int16_t  x, y;
+int16_t x, y;
 
 void loop()
 {
 
     // Limit the touch detection interval and detect the touch status every 300ms
     // https://github.com/Xinyuan-LilyGO/LilyGo-EPD47/issues/143
-    if (millis()  < touch_loop_interval) {
+    if (millis() < touch_loop_interval)
+    {
         return;
     }
 
     uint8_t touched = touch.getPoint(&x, &y);
-    if (touched) {
-        // Serial.printf("X:%d Y:%d\n", x, y);
-        if ((x > 600 && x < 720) && (y > 450 && y < 510)) {
+    if (touched)
+    {
+        Serial.printf("X:%d Y:%d\n", x, y);
+        if ((x > button_1_x && x < button_1_x + 120) && (y > button_1_y && y < button_1_y + 60))
+        {
             state--;
-        } else if ((x > 740 && x < 860) && (y > 450 && y < 510)) {
+        }
+        else if ((x > button_2_x && x < button_2_x + 120) && (y > button_2_y && y < button_2_y + 60))
+        {
             state++;
-        } else {
+        }
+        else
+        {
             return;
         }
         state %= 4;
@@ -197,7 +238,8 @@ void loop()
         epd_poweron();
         cursor_x = 20;
         cursor_y = 60;
-        switch (state) {
+        switch (state)
+        {
         case 0:
             epd_clear_area(area1);
             write_string((GFXfont *)&FiraSans, (char *)overview, &cursor_x, &cursor_y, NULL);
@@ -234,8 +276,6 @@ void loop()
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
             esp_sleep_enable_ext1_wakeup(_BV(GPIO_NUM_21), ESP_EXT1_WAKEUP_ANY_LOW);
 #endif
-
-
 
             esp_deep_sleep_start();
             break;
