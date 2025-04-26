@@ -1,3 +1,24 @@
+# Add support of canvas orientation for Lilygo-EPD47 ESP32-S3
+
+Concept of canvas is introduced to facilitate the change.
+Canvas framebuffer(landscape or portrait) is having the same structure as the device framebuffer(must be in landscape). 
+
+Below functions in ```epd_driver.c``` are created for the conversion:
+* canvas_framebuffer_to_device_framebuffer()
+* canvas_coordinates_to_device_coordinates()
+* canvas_rect_to_device_rectI() 
+* epd_draw_canvas_framebuffer()
+
+## How to use
+Open ```epd_driver.h```, set EPD_CANVAS_ORIENTATION to ```0```(Default), ```90```, ```180```, ```270```.
+
+## Example 
+ ```examples/drawExample``` and ```examples/touch``` are updated for reference.
+
+Below are the content of the original README file.
+
+---
+
 <h1 align = "center">🌟LilyGo EPD47 🌟</h1>
 
 <!-- ## **English | [中文](./README_CN.MD)** -->
