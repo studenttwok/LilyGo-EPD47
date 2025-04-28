@@ -25,7 +25,7 @@
 #include "freertos/task.h"
 #include "epd_driver.h"
 #include "logo.h"
-#include "firasans.h"
+#include "NotoSansHK.h"
 #include <Wire.h>
 #include "lilygo.h"
 #include <TouchDrvGT911.hpp> //Arduino IDE -> Library manager -> Install SensorLib v0.19
@@ -36,12 +36,14 @@ TouchDrvGT911 touch;
 uint8_t *framebuffer = NULL;
 
 const char overview[] = {
-    "   ESP32 is a single 2.4 GHz Wi-Fi-and-Bluetooth\n"
+    "ESP32 is a single 2.4 GHz Wi-Fi-and-Bluetooth\n"
     "combo chip designed with the TSMC ultra-low-po\n"
     "wer 40 nm technology. It is designed to achieve \n"
     "the best power and RF performance, showing rob\n"
     "ustness versatility and reliability in a wide variet\n"
-    "y of applications and power scenarios.\n"};
+    "y of applications and power scenarios.\n\n"
+    "Traditional Chinese is supported as well.\n"
+    "正體中文全形符號都Okay！\n"};
 
 const char mcu_features[] = {
     "➸ Xtensa® dual-core 32-bit LX6 microprocessor\n"
@@ -166,7 +168,7 @@ void setup()
 
     epd_poweron();
     epd_clear();
-    write_string((GFXfont *)&FiraSans, (char *)overview, &cursor_x, &cursor_y, framebuffer);
+    write_string((GFXfont *)&NotoSansHK, (char *)overview, &cursor_x, &cursor_y, framebuffer);
 
     // Draw Box
     // epd_draw_rect(600, 450, 120, 60, 0, framebuffer);
@@ -175,13 +177,13 @@ void setup()
     // cursor_y = 490;
     cursor_x = button_1_x + 15;
     cursor_y = button_1_y + 40;
-    writeln((GFXfont *)&FiraSans, "Prev", &cursor_x, &cursor_y, framebuffer);
+    writeln((GFXfont *)&NotoSansHK, "Prev", &cursor_x, &cursor_y, framebuffer);
 
     // epd_draw_rect(740, 450, 120, 60, 0, framebuffer);
     epd_draw_rect(button_2_x, button_2_y, 120, 60, 0, framebuffer);
     cursor_x = button_2_x + 15;
     cursor_y = button_2_y + 40;
-    writeln((GFXfont *)&FiraSans, "Next", &cursor_x, &cursor_y, framebuffer);
+    writeln((GFXfont *)&NotoSansHK, "Next", &cursor_x, &cursor_y, framebuffer);
 
     Rect_t area = {
         .x = 10,
@@ -242,20 +244,20 @@ void loop()
         {
         case 0:
             epd_clear_area(area1);
-            write_string((GFXfont *)&FiraSans, (char *)overview, &cursor_x, &cursor_y, NULL);
+            write_string((GFXfont *)&NotoSansHK, (char *)overview, &cursor_x, &cursor_y, NULL);
             break;
         case 1:
             epd_clear_area(area1);
-            write_string((GFXfont *)&FiraSans, (char *)srceen_features, &cursor_x, &cursor_y, NULL);
+            write_string((GFXfont *)&NotoSansHK, (char *)srceen_features, &cursor_x, &cursor_y, NULL);
             break;
         case 2:
             epd_clear_area(area1);
-            write_string((GFXfont *)&FiraSans, (char *)mcu_features, &cursor_x, &cursor_y, NULL);
+            write_string((GFXfont *)&NotoSansHK, (char *)mcu_features, &cursor_x, &cursor_y, NULL);
             break;
         case 3:
             delay(1000);
             epd_clear_area(area1);
-            write_string((GFXfont *)&FiraSans, "DeepSleep", &cursor_x, &cursor_y, NULL);
+            write_string((GFXfont *)&NotoSansHK, "DeepSleep", &cursor_x, &cursor_y, NULL);
 
             // The touch interrupt uses non-RTC-IO, so the touch wake-up function cannot be used to set the touch to sleep
             touch.sleep();
