@@ -255,8 +255,8 @@ void write_mode_impl(const GFXfont *font,
             uint8_t *device_framebuffer = (uint8_t *)malloc(buffer_size);
             memset(device_framebuffer, 255, buffer_size);
 
-            canvas_rect_to_device_rect(EPD_CANVAS_ORIENTATION, &area);
-            canvas_framebuffer_to_device_framebuffer(EPD_CANVAS_ORIENTATION, buffer, w, h, device_framebuffer, &area.width, &area.height);
+            canvas_rect_to_device_rect(canvas_orientation, &area);
+            canvas_framebuffer_to_device_framebuffer(canvas_orientation, buffer, w, h, device_framebuffer, &area.width, &area.height);
             epd_draw_image(area, device_framebuffer, mode);
             free(device_framebuffer);
         }
