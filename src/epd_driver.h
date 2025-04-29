@@ -400,6 +400,13 @@ extern "C"
     /**
      * @brief Write text to the EPD.
      *
+     * @note This is the implement method for `write_mode`.
+     */
+    void write_mode_impl(const GFXfont *font, const char *string, int32_t *cursor_x, int32_t *cursor_y, uint8_t *framebuffer, DrawMode_t mode, const FontProperties *properties, uint16_t canvas_orientation, int32_t canvas_width, int32_t canvas_height);
+
+    /**
+     * @brief Write text to the EPD.
+     *
      * @note If framebuffer is NULL, draw mode `mode` is used for direct drawing.
      */
     void write_mode(const GFXfont *font, const char *string, int32_t *cursor_x,

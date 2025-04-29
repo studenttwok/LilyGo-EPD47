@@ -164,17 +164,16 @@ void get_text_bounds(const GFXfont *font,
 }
 
 // To obey canvas
-void write_mode(const GFXfont *font,
-                const char *string,
-                int32_t *cursor_x,
-                int32_t *cursor_y,
-                uint8_t *framebuffer,
-                DrawMode_t mode,
-                const FontProperties *properties)
+void write_mode_impl(const GFXfont *font,
+                     const char *string,
+                     int32_t *cursor_x,
+                     int32_t *cursor_y,
+                     uint8_t *framebuffer,
+                     DrawMode_t mode,
+                     const FontProperties *properties, uint16_t canvas_orientation, int32_t canvas_width, int32_t canvas_height)
 {
     if (*string == '\0')
         return;
-
     FontProperties props = (properties == NULL) ? font_properties_default()
                                                 : *properties;
 
@@ -204,8 +203,8 @@ void write_mode(const GFXfont *font,
     }
     else
     {
-        buf_width = (EPD_CANVAS_WIDTH / 2 + EPD_CANVAS_WIDTH % 2);
-        buf_height = EPD_CANVAS_HEIGHT;
+        buf_width = (canvas_width / 2 + canvas_width % 2);
+        buf_height = canvas_height;
 
         buffer = framebuffer;
         local_cursor_x = *cursor_x;
@@ -229,6 +228,7 @@ void write_mode(const GFXfont *font,
                            buffer);
         }
     }
+
     while ((c = next_cp((uint8_t **)&string)))
     {
         draw_char(font, buffer, &local_cursor_x, local_cursor_y, buf_width, buf_height, c, &props);
@@ -239,29 +239,41 @@ void write_mode(const GFXfont *font,
 
     if (framebuffer == NULL)
     {
-
         Rect_t area = {
             .x = x1,
             .y = *cursor_y - h + baseline_height,
             .width = w,
             .height = h};
 
-#if EPD_CANVAS_ORIENTATION == 0
-        epd_draw_image(area, buffer, mode);
+        if (canvas_orientation == 0)
+        {
+            epd_draw_image(area, buffer, mode);
+        }
+        else
+        {
+            int buffer_size = (h + h % 2) * w;
+            uint8_t *device_framebuffer = (uint8_t *)malloc(buffer_size);
+            memset(device_framebuffer, 255, buffer_size);
 
-#else
-        int buffer_size = (h + h % 2) * w;
-        uint8_t *device_framebuffer = (uint8_t *)malloc(buffer_size);
-        memset(device_framebuffer, 255, buffer_size);
-
-        canvas_rect_to_device_rect(EPD_CANVAS_ORIENTATION, &area);
-        canvas_framebuffer_to_device_framebuffer(EPD_CANVAS_ORIENTATION, buffer, w, h, device_framebuffer, &area.width, &area.height);
-        epd_draw_image(area, device_framebuffer, mode);
-        free(device_framebuffer);
-#endif
+            canvas_rect_to_device_rect(EPD_CANVAS_ORIENTATION, &area);
+            canvas_framebuffer_to_device_framebuffer(EPD_CANVAS_ORIENTATION, buffer, w, h, device_framebuffer, &area.width, &area.height);
+            epd_draw_image(area, device_framebuffer, mode);
+            free(device_framebuffer);
+        }
 
         free(buffer);
     }
+}
+
+void write_mode(const GFXfont *font,
+                const char *string,
+                int32_t *cursor_x,
+                int32_t *cursor_y,
+                uint8_t *framebuffer,
+                DrawMode_t mode,
+                const FontProperties *properties)
+{
+    return write_mode_impl(font, string, cursor_x, cursor_y, framebuffer, mode, properties, EPD_CANVAS_ORIENTATION, EPD_CANVAS_WIDTH, EPD_CANVAS_HEIGHT);
 }
 
 void writeln(const GFXfont *font,
